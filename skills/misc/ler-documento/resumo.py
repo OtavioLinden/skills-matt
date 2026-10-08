@@ -1,20 +1,30 @@
 #!/usr/bin/env python3
 """Short summary of a received file; full text goes to a file, never stdout.
 
-Usage: ~/.local/share/ler-documento/venv/bin/python -I resumo.py FILE [--out DIR] [--head N]
+Usage (venv python: Linux venv/bin/python, Windows venv/Scripts/python.exe):
+  ~/.local/share/ler-documento/venv/bin/python -I resumo.py FILE [--out DIR] [--head N]
+  ~/.local/share/ler-documento/venv/bin/python -I resumo.py FILE.pdf --page N [--dpi 80]
 Never extracts archives and never executes anything from the input.
 """
 import argparse
 import csv
 import hashlib
+import os
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import zipfile
 from pathlib import Path
 
 ARCH = {".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz"}
 IMG = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
 MEDIA = {".mp3", ".wav", ".m4a", ".ogg", ".opus", ".flac", ".mp4", ".mkv", ".mov", ".webm", ".avi"}
+IS_WINDOWS = os.name == "nt"
+
+# Accented names and text through a Windows console or pipe die on cp1252 without this.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 def out_path(src: Path, out_dir: Path, ext: str) -> Path:
@@ -53,6 +63,18 @@ def pdf(src, out_dir, head):
     print(f"full text: {txt}")
     first = [l for l in Path(txt).read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("=== PAGE")]
     show(first, head)
+
+
+def render(src, out_dir, page, dpi):
+    """One PDF page as PNG, through pymupdf: no poppler needed on any OS."""
+    import pymupdf as fitz
+
+    doc = fitz.open(src)
+    if not 1 <= page <= doc.page_count:
+        sys.exit(f"page {page} out of range 1..{doc.page_count}")
+    png = out_path(src, out_dir, f"-p{page}.png")
+    doc[page - 1].get_pixmap(dpi=dpi).save(png)
+    print(f"page {page} rendered at {dpi} dpi: {png}")
 
 
 def fmt(nums, cap=20):
@@ -116,26 +138,59 @@ def docx(src, out_dir, head):
     show(paras, head)
 
 
+def seven_zip():
+    """7z on PATH, or where the 7-Zip installer puts it on Windows (it never touches PATH)."""
+    found = shutil.which("7z")
+    if found:
+        return found
+    for base in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+        exe = Path(base) / "7-Zip" / "7z.exe" if base else None
+        if exe and exe.is_file():
+            return str(exe)
+    return None
+
+
 def archive(src, out_dir, head):
-    ext = src.suffix.lower()
-    if ext == ".rar":
-        tool = shutil.which("unrar")
-        cmd = [tool, "lb", "--", str(src)] if tool else None
-        note = "" if tool else "unrar missing (7z 16 and unrar-free cannot extract RAR5): run install.sh"
+    # zip and tar need no tool: the stdlib lists them, and extracts them too.
+    if zipfile.is_zipfile(src):
+        with zipfile.ZipFile(src) as z:
+            lines = [f"{i.file_size:>12}  {i.filename}" for i in z.infolist()]
+        print(f"size: {src.stat().st_size} bytes  entries listed: {len(lines)}")
+        show(lines, head)
+        print(f'not extracted. Extract into a NEW EMPTY dir: "{sys.executable}" -I -m zipfile -e "{src}" DIR/')
+        return
+    if tarfile.is_tarfile(src):
+        with tarfile.open(src) as t:
+            lines = [f"{m.size:>12}  {m.name}" for m in t.getmembers()]
+        print(f"size: {src.stat().st_size} bytes  entries listed: {len(lines)}")
+        show(lines, head)
+        # The data filter refuses absolute paths, ../ and links out of DIR (PEP 706).
+        print(f'not extracted. Extract into a NEW EMPTY dir: "{sys.executable}" -I -m tarfile --filter data -e "{src}" DIR/')
+        return
+
+    installer = "install.ps1" if IS_WINDOWS else "install.sh"
+    seven = seven_zip()
+    unrar = shutil.which("unrar")
+    if src.suffix.lower() == ".rar" and (unrar or not IS_WINDOWS):
+        # On Linux only the non-free unrar extracts RAR5 (7z 16 and unrar-free fail on it).
+        cmd = [unrar, "lb", "--", str(src)] if unrar else None
+        note = "" if unrar else f"unrar missing (7z 16 and unrar-free cannot extract RAR5): run {installer}"
+        how = f"{unrar} x -idq -y FILE DIR/"
     else:
-        tool = shutil.which("7z")
-        cmd = [tool, "l", "-ba", "--", str(src)] if tool else None
-        note = "" if tool else "7z missing: run install.sh"
+        # 7-Zip for Windows extracts RAR5 too.
+        cmd = [seven, "l", "-ba", "--", str(src)] if seven else None
+        note = "" if seven else f"7z missing: run {installer}"
+        how = f'"{seven}" x -y -bso0 -oDIR FILE'
     if not cmd:
         print(note)
         return
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     lines = [l for l in r.stdout.splitlines() if l.strip()]
     print(f"size: {src.stat().st_size} bytes  entries listed: {len(lines)}")
     if r.returncode:
         print(f"listing failed rc={r.returncode}: {clip(r.stderr)}")
     show(lines, head)
-    print("not extracted. Extract into a NEW EMPTY dir: unrar x -idq -y FILE DIR/  |  7z x -y -bso0 -oDIR FILE")
+    print(f"not extracted. Extract into a NEW EMPTY dir: {how}")
 
 
 def image(src, out_dir, head):
@@ -152,14 +207,21 @@ def image(src, out_dir, head):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("file")
-    ap.add_argument("--out", default="/tmp/ler-documento")
+    ap.add_argument("--out", default=str(Path(tempfile.gettempdir()) / "ler-documento"))
     ap.add_argument("--head", type=int, default=15)
+    ap.add_argument("--page", type=int, help="render this PDF page to PNG instead of summarizing")
+    ap.add_argument("--dpi", type=int, default=80)
     a = ap.parse_args()
     src = Path(a.file)
     if not src.is_file():
         sys.exit(f"not a file: {src}")
     out = Path(a.out)
     ext = src.suffix.lower()
+    if a.page is not None:
+        if ext != ".pdf":
+            sys.exit("--page only renders PDF pages")
+        render(src, out, a.page, a.dpi)
+        return
     print(f"file: {src.name}  ({src.stat().st_size} bytes)")
     if ext == ".pdf":
         try:

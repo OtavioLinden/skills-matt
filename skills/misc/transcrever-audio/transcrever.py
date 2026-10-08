@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Transcribe audio/video with Parakeet TDT v3 (onnx-asr, int8, CPU). Installed by transcrever-audio/install.sh."""
+"""Transcribe audio/video with Parakeet TDT v3 (onnx-asr, int8, CPU).
+
+Installed by transcrever-audio/install.sh (Linux) or install.ps1 (Windows).
+"""
 import argparse
 import os
 import shutil
@@ -8,10 +11,24 @@ import sys
 import tempfile
 from pathlib import Path
 
-HOME = Path(os.environ.get("TRANSCREVER_HOME", Path.home() / ".local" / "share" / "transcrever"))
-VENV_PY = HOME / "venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-INSTALLER = "transcrever-audio/install.sh (skill no fork skills-matt, skills/misc/transcrever-audio)"
+IS_WINDOWS = os.name == "nt"
+# Where the installer put the venv and the model: install.ps1 uses %LOCALAPPDATA% on Windows.
+DEFAULT_HOME = (
+    Path(os.environ["LOCALAPPDATA"]) / "transcrever"
+    if IS_WINDOWS and os.environ.get("LOCALAPPDATA")
+    else Path.home() / ".local" / "share" / "transcrever"
+)
+HOME = Path(os.environ.get("TRANSCREVER_HOME", DEFAULT_HOME))
+VENV_PY = HOME / "venv" / ("Scripts/python.exe" if IS_WINDOWS else "bin/python")
+INSTALLER = (
+    ("transcrever-audio/install.ps1" if IS_WINDOWS else "transcrever-audio/install.sh")
+    + " (skill no fork skills-matt, skills/misc/transcrever-audio)"
+)
 MODEL = "nemo-parakeet-tdt-0.6b-v3"
+
+# pt-BR text through a Windows console or pipe dies on cp1252 without this.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def die(msg):
@@ -23,7 +40,12 @@ def reexec_in_venv():
     if not VENV_PY.exists():
         die(f"venv ausente em {VENV_PY}. Rode o instalador: {INSTALLER}")
     if Path(sys.prefix).resolve() != (HOME / "venv").resolve():
-        os.execv(str(VENV_PY), [str(VENV_PY), os.path.abspath(__file__), *sys.argv[1:]])
+        argv = [str(VENV_PY), os.path.abspath(__file__), *sys.argv[1:]]
+        if IS_WINDOWS:
+            # os.execv on Windows starts a new process and exits at once: the shell
+            # would get its prompt back before the transcript.
+            sys.exit(subprocess.run(argv).returncode)
+        os.execv(str(VENV_PY), argv)
 
 
 def to_wav(src, tmpdir):

@@ -20,6 +20,9 @@ transcrever a.ogg b.mp3 -o saida.txt     # grava em arquivo, stdout mostra só a
 
 ## Faltou `transcrever`, o venv ou o modelo
 
-Rode o instalador desta pasta (idempotente, retoma download interrompido): `bash <pasta desta skill>/install.sh`. No Windows: `install.ps1` (precisa de Python 3.10+ e ffmpeg no PATH). Download do modelo: ~670 MB.
+Rode o instalador desta pasta (idempotente, retoma download interrompido; o modelo tem ~670 MB):
+
+- Linux: `bash ~/.claude/skills/transcrever-audio/install.sh`
+- Windows (Git Bash): `powershell -ExecutionPolicy Bypass -File ~/.claude/skills/transcrever-audio/install.ps1`. Precisa de Python 3.10+ e ffmpeg no PATH (`winget install Gyan.FFmpeg`); instala `transcrever` e `transcrever.cmd` em `~/.local/bin`, que precisa estar no PATH.
 
 Com menos de ~2 GB de RAM disponível (`free -m`), a carga do modelo é morta por OOM (exit 137): espere memória liberar em vez de trocar de modelo.
