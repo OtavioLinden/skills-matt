@@ -36,6 +36,8 @@ Use this template for writing the PR body:
 
 Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
 
+Before publishing, pass the prose through the `humanizer` skill in a subagent: tell it to invoke `anthropic-skills:humanizer` on the body and return only the final text. Diagrams, diff-sketches and code blocks stay as written.
+
 ### Summary
 
 Pick the smallest view that makes the key point clear.
