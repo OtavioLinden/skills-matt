@@ -24,10 +24,18 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), marked as closing the spec and tickets.
 
-4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. Each implementer subagent:
-   - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
+4. Use **implementer subagents** to implement each ticket, each in its own worktree on its own branch. The orchestrator creates each worktree itself with `git worktree add -b <ticket-branch> <absolute-path> <integration-branch>` and launches the implementer without `isolation: "worktree"`, since that option can base the worktree on the default branch instead of the integration branch. Each implementer subagent:
+   - confirms its worktree is on the integration branch's history before starting; if not, stops and reports;
    - calls the Skill tool with `tdd` to build the ticket;
    - merges the integration branch tip into its own branch before reporting done
+
+   **Implementer brief**, in addition to the context pointers:
+   - Model: sonnet. Opus only when the ticket needs design work.
+   - Every command uses the literal absolute worktree path. No shell variables for it, no `cd` outside it.
+   - Waiting on a test: never `sleep`. Run a `--filter` test in the foreground, or load Monitor with `ToolSearch select:Monitor` first. The full suite belongs to the orchestrator.
+   - Report once, when done or blocked. Never send a partial report while waiting on background work.
+   - Shared notes are written only by the orchestrator.
+   - May disagree with the ticket with a reason; flag its own decisions in the report; report a bug in the plan instead of working around it silently.
 
 5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**.
 
