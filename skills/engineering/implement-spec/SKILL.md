@@ -46,3 +46,5 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 8. If a draft PR exists, mark it ready for review. Otherwise, resolve each ticket the way the issue tracker closes work, and report the integration branch.
 
 9. Clean up all **implementer subagent** worktrees.
+
+10. Close each wave of tickets (and the end of a work day) with a call to the Skill tool with `handoff`: integration branch state, tickets done and pending, the frontier. One or two lines, so the next session resumes from it.

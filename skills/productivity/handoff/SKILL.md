@@ -4,7 +4,7 @@ description: Compact the current conversation into a handoff document for anothe
 argument-hint: "What will the next session be used for?"
 ---
 
-Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows) - not the current workspace.
+Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to `.scratch/handoffs/<YYYY-MM-DD>-<slug>.md` in the working directory and cite it by that relative path, one per line, in code (the user's terminal opens relative paths only, and `/tmp` disappears). If `git check-ignore .scratch` finds it unignored, append `/.scratch/` to `.git/info/exclude` (never the versioned `.gitignore`).
 
 Include a "suggested skills" section in the document, naming which skills the next agent should call the Skill tool for.
 
