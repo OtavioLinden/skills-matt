@@ -8,3 +8,4 @@ Tools I keep around but rarely use, not promoted in the plugin.
 - **[setup-pre-commit](./setup-pre-commit/SKILL.md)**: Set up Husky pre-commit hooks with lint-staged, Prettier, type checking, and tests.
 - **[ler-documento](./ler-documento/SKILL.md)**: Read a received PDF, spreadsheet, docx, archive or scanned image text-first, spending little context.
 - **[transcrever-audio](./transcrever-audio/SKILL.md)**: Transcribe audio/video with the fixed local model (Parakeet TDT v3, CPU) via the `transcrever` command; includes the cross-machine installer.
+- **[limpa-branchs](./limpa-branchs/SKILL.md)**: User-invoked cleanup of merged branches (local and GitHub), idle worktrees and their containers on this machine, after one OK on the list.
