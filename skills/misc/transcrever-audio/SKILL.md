@@ -5,7 +5,9 @@ description: Transcrever áudio ou vídeo recebido ou citado, como mensagem de v
 
 # Transcrever áudio
 
-`transcrever` é o único caminho de transcrição, em qualquer projeto e máquina. Modelo fixo: Parakeet TDT v3 int8 (25 línguas europeias, inclui pt-BR), offline, só CPU.
+Áudio do WhatsApp pessoal já vem transcrito pelo MCP `whatsapp` (`ler_conversa` ou `transcrever_audio`): não baixe para transcrever de novo.
+
+`transcrever` é o único caminho de transcrição local, em qualquer projeto e máquina. Modelo fixo: Parakeet TDT v3 int8 (25 línguas europeias, inclui pt-BR), offline, só CPU.
 
 ```bash
 transcrever audio.ogg                    # texto no stdout
